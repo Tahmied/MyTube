@@ -1,0 +1,25 @@
+{
+  "name": "mytube",
+  "version": "1.0.0",
+  "description": "creating a webapp similar to youtube where twitter option is inbuild for better engagement",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon src/server.js"
+  },
+  "keywords": [
+    "tahmied",
+    "mytube"
+  ],
+  "author": "Tahmied Hossain",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.12.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9",
+    "prettier": "^3.5.3"
+  }
+}
