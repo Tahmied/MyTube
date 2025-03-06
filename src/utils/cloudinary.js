@@ -3,8 +3,8 @@ import { v2 as cloudinary } from 'cloudinary'
 // Configuration
 cloudinary.config({
     cloud_name: 'dzkdemrec',
-    api_key: '973334968424263',
-    api_secret: 'iHTxrVgcnHo8WxEev6QX2pC5wV8'
+    api_key: process.env.API_KEY_CLOUDINARY,
+    api_secret: process.env.API_SECRET_CLOUDINARY
 });
 
 const uploadOnCloudinary = async (localFilePath) => {
