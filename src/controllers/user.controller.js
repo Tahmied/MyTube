@@ -1,8 +1,25 @@
-import { User } from '../models/user.model.js';
+import { User } from '../models/user.model.js'
 import { apiError } from '../utils/apiError.js'
-import { apiResponse } from '../utils/apiResponse.js';
+import { apiResponse } from '../utils/apiResponse.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
-import { uploadOnCloudinary } from '../utils/cloudinary.js';
+import { uploadOnCloudinary } from '../utils/cloudinary.js'
+import jwt from 'jsonwebtoken'
+
+const generateAccessAndRefreshToken = async (userId) => {
+    try {
+        const user = await User.findById(userId).select("-password")
+        const accessToken = await user.generateAccessToken()
+        const refreshToken = await user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        user.save({ validateBeforeSave: false })
+        return { accessToken, refreshToken }
+
+    } catch (err) {
+        console.log(`failed to generate refresh and access token`);
+        throw new Error("failed to generate tokens")
+    }
+}
 
 const registerUser = asyncHandler(async (req, res) => {
     // get user details from frontend
@@ -28,6 +45,8 @@ const registerUser = asyncHandler(async (req, res) => {
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files?.coverImage.length > 0) {
         coverImageLocalPath = await req.files.coverImage[0].path
+    } else {
+        throw new apiError(500, "Multer file upload error")
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath)
@@ -53,4 +72,101 @@ const registerUser = asyncHandler(async (req, res) => {
     return res.status(201).json(new apiResponse(200, createdUser, "user registration successfull"))
 })
 
-export { registerUser }
+const loginUser = asyncHandler(async (req, res) => {
+    const { username, email, password } = req.body
+
+    if ([username, email].some((e) => !e)) {
+        throw new apiError(400, "all fields are required")
+    }
+
+    const user = await User.findOne({ $or: [{ username }, { email }] })
+    if (!user) {
+        throw new apiError(401, "wront username or email")
+    }
+    const checkPass = await user.checkPassword(password)
+    if (!checkPass) {
+        throw new apiError(400, "wrong password")
+    }
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
+    const loggedInUser = await User.findById(user._id)
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: true
+    }
+    res
+        .status(200)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .json(
+            new apiResponse(200, loggedInUser, "User logged in successful")
+        )
+})
+
+const logoutUser = asyncHandler(async (req, res) => {
+
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $unset: {
+                refreshToken: 1
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: true
+    }
+    res
+        .status(200)
+        .clearCookie("accessToken", cookieOptions)
+        .clearCookie('refreshToken', cookieOptions)
+        .json(
+            new apiResponse(200, {}, "User logged Out")
+        )
+})
+
+const renewTokens = asyncHandler(async (req, res) => {
+    const userRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    if (!userRefreshToken) {
+        throw new apiError(400, "No refresh token found")
+    }
+
+    try {
+        const decodedRefreshToken = await jwt.verify(userRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+
+        const user = await User.findById(decodedRefreshToken._id)
+
+        if (!decodedRefreshToken) {
+            throw new apiError(400, "Unauthorized request")
+        }
+        if (decodedRefreshToken !== user.refreshToken) {
+            throw new apiError(404, "Refresh TOken already used or expired")
+        }
+        const { newAccessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id)
+
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true
+        }
+
+        return res
+            .status(200)
+            .cookie('accessToken', newAccessToken, cookieOptions)
+            .cookie('refreshToken', newRefreshToken, cookieOptions)
+            .json(
+                new apiResponse(200, {}, "Access and refresh token regenrated")
+            )
+
+    } catch (err) {
+        throw new apiError(400, `Failed to renew tokens automatically due to ${err}`)
+    }
+
+})
+
+export { registerUser, loginUser, logoutUser, renewTokens }
