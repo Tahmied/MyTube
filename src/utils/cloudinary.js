@@ -7,13 +7,8 @@ dotenv.config({ path: './.env' })
 // Configuration
 cloudinary.config({
     cloud_name: 'dzkdemrec',
-<<<<<<< HEAD
     api_key: process.env.API_KEY_CLOUDINARY,
     api_secret: process.env.API_SECRET_CLOUDINARY
-=======
-    api_key: `${process.env.API_KEY_CLOUDINARY}`,
-    api_secret: `${process.env.API_SECRET_CLOUDINARY}`
->>>>>>> temp-branch
 });
 
 const uploadOnCloudinary = async (localFilePath) => {
