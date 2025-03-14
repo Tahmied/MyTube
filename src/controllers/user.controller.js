@@ -180,7 +180,7 @@ const changePassword = asyncHandler(async (req,res) => {
     if(!user){
         throw new apiError(401 , "Unable to find the user")
     }
-    const checkPass = await user.isPasswordCorrect(oldPass)
+    const checkPass = await user.checkPassword(oldPass)
     if(!checkPass){
         throw new apiError(401, "Wrong old password")
     }
@@ -205,7 +205,7 @@ const updateProfileDetails = asyncHandler(async(req,res)=>{
     if(!password){
         throw new apiError(401, "Please input your password")
     }
-    const checkPass = await user.isPasswordCorrect(password)
+    const checkPass = await user.checkPassword(password)
     if(!checkPass){
         throw new apiError(400 , "Wrong password")
     }
@@ -227,3 +227,4 @@ const updateProfileDetails = asyncHandler(async(req,res)=>{
 })
 
 export { changePassword, loginUser, logoutUser, registerUser, renewTokens, updateProfileDetails }
+
