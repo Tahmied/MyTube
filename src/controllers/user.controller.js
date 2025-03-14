@@ -1,9 +1,9 @@
+import jwt from 'jsonwebtoken'
 import { User } from '../models/user.model.js'
 import { apiError } from '../utils/apiError.js'
 import { apiResponse } from '../utils/apiResponse.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
-import jwt from 'jsonwebtoken'
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -168,5 +168,62 @@ const renewTokens = asyncHandler(async (req, res) => {
     }
 
 })
+const changePassword = asyncHandler(async (req,res) => {
+    const {oldPass , newPass , confirmNewPass} = req.body
+    if([oldPass , newPass , confirmNewPass].some((e)=>!e)){
+        throw new apiError(400 , 'All fields are required')
+    }
+    if(newPass !== confirmNewPass){
+        throw new apiError(401, 'New password and confirm password didnt match')
+    }
+    const user = await req.user
+    if(!user){
+        throw new apiError(401 , "Unable to find the user")
+    }
+    const checkPass = await user.isPasswordCorrect(oldPass)
+    if(!checkPass){
+        throw new apiError(401, "Wrong old password")
+    }
+    user.password = newPass
+    await user.save({validateBeforeSave:false})
+    
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200 , {} , "Password updated")
+    )
+})
 
-export { registerUser, loginUser, logoutUser, renewTokens }
+const updateProfileDetails = asyncHandler(async(req,res)=>{
+    const user = await req.user
+    const {  email, fullName, password } = req.body
+    
+    if(!fullName && !email){
+        throw new apiError(401, "At least one field should be changed")
+    }
+
+    if(!password){
+        throw new apiError(401, "Please input your password")
+    }
+    const checkPass = await user.isPasswordCorrect(password)
+    if(!checkPass){
+        throw new apiError(400 , "Wrong password")
+    }
+
+    if(fullName){
+        user.fullName = fullName
+        await user.save({validateBeforeSave:false})
+    } 
+    if(email){
+        user.email = email
+        await user.save({validateBeforeSave:false})
+    }
+    const updatedUser = await User.findById(user._id)
+    return res 
+    .status(200)
+    .json(
+        new apiResponse(200 , updatedUser , "Selected fieelds are updated")
+    )
+})
+
+export { changePassword, loginUser, logoutUser, registerUser, renewTokens, updateProfileDetails }
